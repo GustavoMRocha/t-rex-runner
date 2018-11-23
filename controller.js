@@ -13,24 +13,29 @@ Controller.actions = {
     DUCK: "duck"
 };
 
+Controller.actionsIndex = {
+    0: Controller.actions.NEUTRAL,
+    1: Controller.actions.JUMP,
+    2: Controller.actions.DUCK
+};
+
 /* Possible actions from the neural network */
 Controller.prototype = {
     init: function(){
-        // Define layers
-        var inputLayer = new Layer(6);
-        var hiddenLayer = new Layer(6);
-        var outputLayer = new Layer(1);
+      // Define a model
+        const model = tf.sequential();
+        model.add(tf.layers.dense({units: 6,
+                biasInitializer: "glorotUniform",
+                kernelInitializer:'glorotUniform',
+                activation: 'sigmoid', 
+                inputShape:[6]}));
+        model.add(tf.layers.dense({units: 3, 
+                biasInitializer: "glorotUniform",
+                kernelInitializer:'glorotUniform',
+                activation: 'sigmoid'}));
+        model.add(tf.layers.softmax({units: 3}));
 
-        // Connect network
-        inputLayer.project(hiddenLayer);
-        hiddenLayer.project(outputLayer);
-
-        // Create neural network
-        this.NN = new Network({
-            input: inputLayer,
-            hidden: [hiddenLayer],
-            output: outputLayer
-        });
+        this.NN = model;
     },
     nextAction: function(firstObstacle, tRex, currentSpeed){
 
@@ -43,18 +48,7 @@ Controller.prototype = {
         var velocity = currentSpeed;
 
         var inputs = [obsX, obsY, obsWidth, obsHeight, trexY, velocity];
-
-        var output = this.NN.activate(inputs);
-        // console.log(inputs);
-        // console.log(output);
-        // console.log(tRex);
-
-        if(output < 0.48){
-            return Controller.actions.DUCK;
-        } else if (output > 0.49){
-            return Controller.actions.JUMP;
-        } else {
-            return Controller.actions.NEUTRAL;
-        }
+        var output = this.NN.predict(tf.tensor2d(inputs,[1,6])).argMax(1).dataSync()[0];
+        return Controller.actionsIndex[output];
     }
 }
